@@ -3,7 +3,7 @@ import type { PictureSource } from '../types/picture';
 import { acceptedTypeLabel, fileToOptimizedDataUrl, validateImageUrl } from '../services/imageService';
 
 interface ImageUploaderProps {
-  onImage: (imageUrl: string, source: PictureSource) => void;
+  onImage: (imageUrl: string, source: PictureSource, label: string) => void;
   onError: (message: string) => void;
 }
 
@@ -22,7 +22,7 @@ export default function ImageUploader({ onImage, onError }: ImageUploaderProps) 
     setReadingFile(true);
     try {
       const dataUrl = await fileToOptimizedDataUrl(file);
-      onImage(dataUrl, 'upload');
+      onImage(dataUrl, 'upload', file.name || 'Uploaded picture');
     } catch (error) {
       onError(error instanceof Error ? error.message : 'The file could not be read.');
     } finally {
@@ -35,7 +35,7 @@ export default function ImageUploader({ onImage, onError }: ImageUploaderProps) 
     setValidating(true);
     try {
       const url = await validateImageUrl(urlValue);
-      onImage(url, 'url');
+      onImage(url, 'url', 'Image link');
     } catch (error) {
       onError(error instanceof Error ? error.message : 'The URL could not be used.');
     } finally {

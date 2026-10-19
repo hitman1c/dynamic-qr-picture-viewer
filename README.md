@@ -9,6 +9,26 @@ same printed code now shows the new picture.
 
 There is no customer app, no account and no login. The customer scans and sees a picture.
 
+## Website structure
+
+The project is both an application and a small marketing site. The public home page is a
+single-page scroll journey through its sections, and the private login and dashboard reuse the same
+blue-and-yellow brand palette.
+
+| Route | Page | Purpose |
+| --- | --- | --- |
+| `/` | Home (single page) | Hero with a phone preview, then Features, How It Works, About, Team, FAQ and a call to action, all as scrollable sections |
+| `/#features`, `/#how-it-works`, `/#about`, `/#team`, `/#faq` | Home sections | Deep links to a section; the old `/features`, `/how-it-works`, `/about`, `/team` and `/faq` paths redirect here |
+| `/dashboard` | Dashboard (private) | Password-protected picture management, QR codes and the location QR tool |
+| `/view/:id` | Public picture page | What a customer sees after scanning; never asks for a login |
+
+Every **Get Started** and **Login** link opens `/dashboard`, which shows the password gate until the
+owner unlocks it. The public viewing page is completely separate from the dashboard.
+
+The Team section lists the one real contributor (Sechaba Seabata) and what he actually built. Profiles
+live in `src/data/team.ts`: add a name, role, biography, skills, contributions, optional photo
+(`photoUrl`) and links to update them.
+
 ## Why this matters for a small business
 
 Printed information goes stale: today's special, this week's prices, the stall's location, the
@@ -21,7 +41,7 @@ With this app the printed QR code is permanent, and the content behind it is edi
 | Print once, update forever | The same sign works for years; only the uploaded picture changes |
 | No app or account for customers | Any phone camera can scan it — nothing to install, nothing to sign up for |
 | Photos, not just text | Show a menu, a price list, a storefront photo, a map with a pin, a promo poster |
-| Update in seconds | Upload a new photo from the dashboard and press **Update picture (keep same QR)** |
+| Update in seconds | Upload a new photo from the dashboard and press **Replace selected picture (keep its QR)** |
 | No image hosting needed | Photos are uploaded straight from the phone or PC and stored with the picture record. A public image URL works too |
 | Cheap and simple | It is a static website with a small database — no servers to babysit |
 
@@ -57,24 +77,47 @@ private — customers never leave your page for a big map app):
 4. Optionally combine the map with a photo of your entrance and a line such as *"Look for the blue
    gate next to the pharmacy"* in any image editor.
 5. Unlock the dashboard, upload that image (or paste a public image URL of a static map — the app
-   checks that the link really returns an image), then press **Publish**.
+   checks that the link really returns an image), then press **Publish as new QR code**.
 6. Download the QR code and print it on your sign, flyer or delivery bag.
 
 Because the code is permanent, you can update the map later — for example when you move to a new
 stall — and every printed QR code instantly shows the new location.
 
+## Share a location as a map link
+
+If you would rather send customers straight into their phone's map app, the dashboard has a
+**Location QR code** tool (section 4). It has two modes:
+
+- **Google Maps link** — paste a share link (for example `https://maps.app.goo.gl/…` or any location
+  web address). A missing scheme is filled in as `https://`.
+- **Coordinates** — type a latitude and longitude (for example `-26.2041`, `28.0473`). The code opens
+  `https://www.google.com/maps/search/?api=1&query=<lat>,<lng>` so it always lands on the exact spot.
+
+A valid entry renders a QR code with the usual **Download QR (PNG)** and **Copy link** buttons, plus
+an **Open location** link for testing. The last entry is remembered in the browser. Invalid or
+out-of-range values (latitude outside −90…90, longitude outside −180…180, or a malformed link) show a
+plain-language message instead of a broken code. This is separate from the picture codes, so a shop
+can print one code for the menu photo and another for directions.
+
 ## Set up your own code in five minutes
 
-1. Open the deployed site and enter the dashboard password (a single password, no username).
+1. Open the deployed site, choose **Get Started** (or **Login**) and enter the dashboard password (a
+   single password, no username).
 2. On first unlock the dashboard publishes the built-in **FREE WIFI** poster, so a working code
    exists right away.
 3. Choose your picture: **Choose picture…** to upload from this device, paste an image URL, or keep
    the WiFi poster.
-4. Press **Publish picture** (or **Update picture (keep same QR)** later).
+4. Press **Publish as new QR code**. That picture gets its own picture id and its own QR code. To
+   change an existing picture instead, select it in the library and use **Replace selected picture
+   (keep its QR)**.
 5. Press **Download QR (PNG)** and print it. The QR code points at a stable public address such as
    `https://your-app.example.com/view/<picture-id>`.
-6. Whenever you want a change, unlock the dashboard, upload the new image and press **Update
-   picture (keep same QR)** — reprint nothing.
+6. Whenever you want a change, unlock the dashboard, upload the new image and press **Replace
+   selected picture (keep its QR)** — reprint nothing. Use **Publish as new QR code** when you want a
+   separate code for a different poster.
+
+Each picture in the library keeps its own address, so publishing several posters gives you several QR
+codes that update independently.
 
 Keep using the same browser that created the picture: it holds the secret edit key. Anyone who
 scans only sees the picture and can never change it.
@@ -104,6 +147,7 @@ QR code go straight to the picture and never see the dashboard.
 - Neon (Postgres) backend: `pictures` table + `get_picture` / `create_picture` /
   `update_picture` RPC functions, exposed via the Neon Data API
 - Managed Better Auth (anonymous tokens) for keyless browser access to the API
+- Custom tab icon at `public/fabicon.png` (also used as the Apple touch icon)
 
 ## Setup
 
@@ -185,7 +229,7 @@ is only useful to customers once the site is reachable on a public HTTPS address
 3. After the first deploy, set `VITE_APP_BASE_URL` and redeploy
 
 After deployment, print or display the QR code. Anyone scanning it sees the current picture.
-Use **Update picture (keep same QR)** to change it — no reprint needed.
+Use **Replace selected picture (keep its QR)** to change it — no reprint needed.
 
 ## Security notes
 

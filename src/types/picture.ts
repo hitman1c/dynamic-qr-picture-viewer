@@ -12,7 +12,13 @@ export interface OwnedPicture extends Picture {
   editToken: string;
 }
 
-export interface PictureRef {
+export interface OwnedPictureRef {
   id: string;
   editToken: string;
+  label: string;
+  createdAt: string;
+}
+
+export interface LibraryPicture extends OwnedPicture {
+  label: string;
 }

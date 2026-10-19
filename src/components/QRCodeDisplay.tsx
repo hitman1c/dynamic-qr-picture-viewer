@@ -3,9 +3,13 @@ import { QRCodeCanvas } from 'qrcode.react';
 
 interface QRCodeDisplayProps {
   value: string;
+  fileName?: string;
 }
 
-export default function QRCodeDisplay({ value }: QRCodeDisplayProps) {
+export default function QRCodeDisplay({
+  value,
+  fileName = 'dynamic-qr-picture.png',
+}: QRCodeDisplayProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +38,7 @@ export default function QRCodeDisplay({ value }: QRCodeDisplayProps) {
       const url = canvas.toDataURL('image/png');
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'dynamic-qr-picture.png';
+      link.download = fileName;
       link.click();
       setError(null);
     } catch {

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   PASSWORD_LENGTH,
   getDashboardPassword,
@@ -78,6 +79,12 @@ export default function PasswordGate({ onUnlock }: PasswordGateProps) {
             Unlock dashboard
           </button>
         </form>
+        <p className="hint">
+          Just here to look around?{' '}
+          <Link className="text-link-inline" to="/">
+            Back to the website
+          </Link>
+        </p>
       </section>
     </div>
   );

@@ -1,4 +1,10 @@
-import type { OwnedPicture, Picture, PictureRef, PictureSource } from '../types/picture';
+import type {
+  LibraryPicture,
+  OwnedPicture,
+  OwnedPictureRef,
+  Picture,
+  PictureSource,
+} from '../types/picture';
 import { createFreeWifiPosterDataUrl } from './imageService';
 
 const dataApiUrl = (import.meta.env.VITE_NEON_DATA_API_URL as string | undefined)?.replace(
@@ -9,7 +15,9 @@ const authUrl = (import.meta.env.VITE_NEON_AUTH_URL as string | undefined)?.repl
 
 export const isRemoteConfigured = Boolean(dataApiUrl && authUrl);
 
-const REF_STORAGE_KEY = 'dqr:picture-ref';
+const LIBRARY_KEY = 'dqr:picture-library';
+const SELECTED_KEY = 'dqr:picture-selected';
+const LEGACY_REF_KEY = 'dqr:picture-ref';
 const LOCAL_PICTURES_KEY = 'dqr:pictures';
 
 interface CreateRow {
@@ -34,6 +42,12 @@ interface UpdateRow {
   image_url: string;
   source: PictureSource;
   updated_at: string;
+}
+
+export interface PictureLibrary {
+  pictures: LibraryPicture[];
+  selectedId: string | null;
+  failedCount: number;
 }
 
 let tokenCache: { token: string; expiresAtMs: number } | null = null;
@@ -77,26 +91,101 @@ async function callRpc<T>(fn: string, body: Record<string, unknown>): Promise<T>
   return (await response.json()) as T;
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * A picture id is always a UUID. Anything else can never match a stored
+ * picture, so treat it as "not found" instead of sending it to the database
+ * (which would answer with a raw HTTP 400).
+ */
+export function isPictureId(value: string): boolean {
+  return UUID_PATTERN.test(value);
+}
+
 function newUuid(): string {
   return crypto.randomUUID();
 }
 
-function readPictureRef(): PictureRef | null {
-  const raw = window.localStorage.getItem(REF_STORAGE_KEY);
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw) as PictureRef;
-    if (typeof parsed.id === 'string' && typeof parsed.editToken === 'string') {
-      return parsed;
-    }
-  } catch {
-    // Ignore corrupted storage.
-  }
-  return null;
+function toPicture(row: PictureRow): Picture {
+  return {
+    id: row.id,
+    imageUrl: row.image_url,
+    source: row.source,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
 }
 
-function writePictureRef(ref: PictureRef): void {
-  window.localStorage.setItem(REF_STORAGE_KEY, JSON.stringify(ref));
+function isOwnedRef(value: unknown): value is OwnedPictureRef {
+  if (!value || typeof value !== 'object') return false;
+  const ref = value as Partial<OwnedPictureRef>;
+  return (
+    typeof ref.id === 'string' &&
+    typeof ref.editToken === 'string' &&
+    typeof ref.label === 'string' &&
+    typeof ref.createdAt === 'string'
+  );
+}
+
+function writeLibraryRefs(refs: OwnedPictureRef[]): void {
+  window.localStorage.setItem(LIBRARY_KEY, JSON.stringify(refs));
+}
+
+function readSelectedId(): string | null {
+  return window.localStorage.getItem(SELECTED_KEY);
+}
+
+function writeSelectedId(id: string | null): void {
+  if (id) {
+    window.localStorage.setItem(SELECTED_KEY, id);
+  } else {
+    window.localStorage.removeItem(SELECTED_KEY);
+  }
+}
+
+function migrateLegacyRef(): OwnedPictureRef[] {
+  const legacyRaw = window.localStorage.getItem(LEGACY_REF_KEY);
+  if (!legacyRaw) return [];
+  try {
+    const legacy = JSON.parse(legacyRaw) as { id?: string; editToken?: string };
+    if (typeof legacy.id !== 'string' || typeof legacy.editToken !== 'string') return [];
+    const refs: OwnedPictureRef[] = [
+      {
+        id: legacy.id,
+        editToken: legacy.editToken,
+        label: 'Existing picture',
+        createdAt: new Date().toISOString(),
+      },
+    ];
+    writeLibraryRefs(refs);
+    writeSelectedId(legacy.id);
+    window.localStorage.removeItem(LEGACY_REF_KEY);
+    return refs;
+  } catch {
+    return [];
+  }
+}
+
+function readLibraryRefs(): OwnedPictureRef[] {
+  const raw = window.localStorage.getItem(LIBRARY_KEY);
+  if (raw !== null) {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (Array.isArray(parsed)) {
+        const refs = parsed.filter(isOwnedRef);
+        if (refs.length > 0) return refs;
+      }
+    } catch {
+      // Fall through to the legacy migration below.
+    }
+  }
+  return migrateLegacyRef();
+}
+
+function addLibraryRef(ref: OwnedPictureRef): void {
+  const refs = readLibraryRefs().filter((existing) => existing.id !== ref.id);
+  refs.unshift(ref);
+  writeLibraryRefs(refs);
 }
 
 function readLocalPictures(): Record<string, OwnedPicture> {
@@ -111,16 +200,6 @@ function readLocalPictures(): Record<string, OwnedPicture> {
 
 function writeLocalPictures(pictures: Record<string, OwnedPicture>): void {
   window.localStorage.setItem(LOCAL_PICTURES_KEY, JSON.stringify(pictures));
-}
-
-function toPicture(row: PictureRow): Picture {
-  return {
-    id: row.id,
-    imageUrl: row.image_url,
-    source: row.source,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
 }
 
 async function remoteCreate(imageUrl: string, source: PictureSource): Promise<OwnedPicture> {
@@ -145,6 +224,7 @@ async function remoteCreate(imageUrl: string, source: PictureSource): Promise<Ow
 }
 
 async function remoteGet(id: string): Promise<Picture | null> {
+  if (!isPictureId(id)) return null;
   const rows = await callRpc<PictureRow[]>('get_picture', { p_id: id });
   const row = rows[0];
   return row ? toPicture(row) : null;
@@ -174,18 +254,29 @@ async function remoteUpdate(
   };
 }
 
-export function getPictureRef(): PictureRef | null {
-  return readPictureRef();
+export function getOwnedPictureRef(id: string): OwnedPictureRef | null {
+  return readLibraryRefs().find((ref) => ref.id === id) ?? null;
 }
 
+/**
+ * Creates a brand new picture with its own id (and therefore its own QR
+ * code) and remembers it in this browser's library.
+ */
 export async function createPicture(
   imageUrl: string,
   source: PictureSource,
-): Promise<OwnedPicture> {
+  label: string,
+): Promise<LibraryPicture> {
   if (isRemoteConfigured) {
     const picture = await remoteCreate(imageUrl, source);
-    writePictureRef({ id: picture.id, editToken: picture.editToken });
-    return picture;
+    addLibraryRef({
+      id: picture.id,
+      editToken: picture.editToken,
+      label,
+      createdAt: picture.createdAt,
+    });
+    writeSelectedId(picture.id);
+    return { ...picture, label };
   }
 
   const now = new Date().toISOString();
@@ -200,8 +291,9 @@ export async function createPicture(
   const pictures = readLocalPictures();
   pictures[picture.id] = picture;
   writeLocalPictures(pictures);
-  writePictureRef({ id: picture.id, editToken: picture.editToken });
-  return picture;
+  addLibraryRef({ id: picture.id, editToken: picture.editToken, label, createdAt: now });
+  writeSelectedId(picture.id);
+  return { ...picture, label };
 }
 
 export async function getPicture(id: string): Promise<Picture | null> {
@@ -219,6 +311,10 @@ export async function getPicture(id: string): Promise<Picture | null> {
   };
 }
 
+/**
+ * Replaces the image of an existing picture. The picture id does not change,
+ * so a QR code that was already printed keeps working.
+ */
 export async function updatePicture(
   id: string,
   editToken: string,
@@ -245,32 +341,91 @@ export async function updatePicture(
   return updated;
 }
 
-let currentPicturePromise: Promise<OwnedPicture> | null = null;
+/**
+ * Forgets a picture in this browser only. The published picture and its QR
+ * code keep working for everyone who already has them; this browser just
+ * stops listing (and being able to edit) it.
+ */
+export function forgetPicture(id: string): void {
+  const refs = readLibraryRefs().filter((ref) => ref.id !== id);
+  writeLibraryRefs(refs);
+  if (readSelectedId() === id) {
+    writeSelectedId(refs[0]?.id ?? null);
+  }
+  const pictures = readLocalPictures();
+  if (pictures[id]) {
+    delete pictures[id];
+    writeLocalPictures(pictures);
+  }
+}
+
+async function loadLibrary(): Promise<PictureLibrary> {
+  const refs = readLibraryRefs();
+
+  if (refs.length === 0) {
+    const poster = await createPicture(
+      createFreeWifiPosterDataUrl(),
+      'default',
+      'FREE WIFI poster',
+    );
+    return { pictures: [poster], selectedId: poster.id, failedCount: 0 };
+  }
+
+  const results = await Promise.allSettled(
+    refs.map(async (ref): Promise<LibraryPicture> => {
+      const picture = await getPicture(ref.id);
+      if (!picture) {
+        throw new Error(`Picture ${ref.id} is no longer available.`);
+      }
+      return {
+        ...picture,
+        createdAt: ref.createdAt || picture.createdAt,
+        updatedAt: picture.updatedAt || ref.createdAt,
+        editToken: ref.editToken,
+        label: ref.label,
+      };
+    }),
+  );
+
+  const pictures: LibraryPicture[] = [];
+  let failedCount = 0;
+  results.forEach((result) => {
+    if (result.status === 'fulfilled') {
+      pictures.push(result.value);
+    } else {
+      failedCount += 1;
+    }
+  });
+
+  const storedSelected = readSelectedId();
+  const selectedId = pictures.some((picture) => picture.id === storedSelected)
+    ? storedSelected
+    : (pictures[0]?.id ?? null);
+
+  return { pictures, selectedId, failedCount };
+}
+
+let libraryPromise: Promise<PictureLibrary> | null = null;
 
 /**
- * Returns the current picture for this browser, creating the default
- * FREE WIFI poster on first run. The promise is memoized so React
- * StrictMode's double mount only creates one picture.
+ * Loads every picture this browser owns, creating the default FREE WIFI
+ * poster on first run. The promise is memoized so React StrictMode's double
+ * mount only creates one picture.
  */
-export function ensureCurrentPicture(): Promise<OwnedPicture> {
-  if (!currentPicturePromise) {
-    currentPicturePromise = (async () => {
-      const existingRef = readPictureRef();
-      if (existingRef) {
-        const existing = await getPicture(existingRef.id);
-        if (existing) {
-          return { ...existing, editToken: existingRef.editToken };
-        }
-      }
-      return createPicture(createFreeWifiPosterDataUrl(), 'default');
-    })().catch((error: unknown) => {
-      currentPicturePromise = null;
+export function loadPictureLibrary(): Promise<PictureLibrary> {
+  if (!libraryPromise) {
+    libraryPromise = loadLibrary().catch((error: unknown) => {
+      libraryPromise = null;
       throw error;
     });
   }
-  return currentPicturePromise;
+  return libraryPromise;
 }
 
-export function resetCurrentPictureCache(): void {
-  currentPicturePromise = null;
+export function resetPictureLibraryCache(): void {
+  libraryPromise = null;
+}
+
+export function selectPicture(id: string): void {
+  writeSelectedId(id);
 }
