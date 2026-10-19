@@ -1,4 +1,4 @@
-# AGENT INSTRUCTIONS: Dynamic QR Code Picture Viewer
+# AGENT INSTRUCTIONS: Dynamic QR Code Picture Viewer   Continue  opencode -s ses_eafb1b48affeuxVZnTAFkk5gRm
 
 ## 1. Project Overview
 
