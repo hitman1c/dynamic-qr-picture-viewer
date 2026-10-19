@@ -4,8 +4,12 @@ A React web application that generates a QR code in the browser. Scanning the co
 opens a public picture-viewing page that always shows the **current** picture. The picture can be
 replaced any time — the printed QR code keeps working.
 
-On first run the app publishes a **FREE WIFI poster** as the default picture, so scanning the QR
-code right away shows that poster on any device.
+The dashboard (where a picture is chosen and published) is private: it asks for a single password
+and no username. People who scan the QR code go straight to the picture and never see the
+dashboard.
+
+After the first dashboard unlock the app publishes a **FREE WIFI poster** as the default picture,
+so scanning the QR code right away shows that poster on any device.
 
 ## How it works
 
@@ -47,9 +51,16 @@ Open http://localhost:5173
 | `VITE_NEON_DATA_API_URL` | Public Neon Data API REST URL, e.g. `https://<endpoint>.apirest.../neondb/rest/v1` |
 | `VITE_NEON_AUTH_URL` | Managed Better Auth base URL used to fetch anonymous tokens |
 | `VITE_APP_BASE_URL` | Optional. Absolute URL of the deployed app used to build QR links (e.g. `https://your-app.netlify.app`). Defaults to the current browser origin |
+| `VITE_DASHBOARD_PASSWORD` | Password that unlocks the private dashboard. Must be **exactly 9 characters**; no username is used. Only the dashboard asks for it — the public `/view/:id` page never does |
 
-None of these values are secrets — the API only allows access through the RPC functions, and
-edits require the per-picture edit token stored in the owner's browser.
+The Neon URLs are not secrets — the API only allows access through the RPC functions, and edits
+require the per-picture edit token stored in the owner's browser.
+
+The dashboard password is different: `VITE_` variables are **bundled into the built site**, so a
+determined visitor could extract it from the JavaScript. It reliably keeps casual visitors out of
+the dashboard but is not a substitute for real authentication. To make it truly server-side, move
+the check into a Netlify/Functions endpoint that reads the password from a non-`VITE_` environment
+variable.
 
 If both API variables are empty the app runs in **local demo mode**: pictures are kept in
 `localStorage` only, which is clearly indicated in the UI. Local mode cannot share pictures
@@ -90,7 +101,8 @@ The app is a static site; any static host works. The viewing page needs an SPA f
 1. Build command: `npm run build`, publish directory: `dist`
 2. `public/_redirects` already provides the SPA fallback
 3. Set the environment variables above in *Site settings → Environment variables*
-4. Deploy, then open the site once so the first picture (FREE WIFI poster) is created
+4. Deploy, then open the site once and unlock the dashboard so the first picture (FREE WIFI poster)
+   is created
 5. Set `VITE_APP_BASE_URL` to the final site URL and rebuild, so the QR code contains the public
    address instead of `localhost`
 
@@ -112,6 +124,10 @@ Use **Update picture (keep same QR)** to change it — no reprint needed.
 - The anonymous API allows anyone to *create* their own picture (each with its own id/token);
   they cannot modify existing ones. For a public production launch, add rate limiting or move
   creation behind real authentication.
+- The dashboard is protected by a single 9-character password (`VITE_DASHBOARD_PASSWORD`, checked
+  in the browser and validated for length and value). Unlocking is remembered per browser tab
+  session; **Lock dashboard** clears it. Because the value ships inside the built bundle, treat it
+  as a deterrent, not as strong security.
 - The Data API CORS setting is currently `*` for demo convenience. Tighten it to your app's
   origin before heavy public use.
 
