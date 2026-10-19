@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import ImageUploader from '../components/ImageUploader';
 import ImagePreview from '../components/ImagePreview';
 import LoadingIndicator from '../components/LoadingIndicator';
+import PasswordGate from '../components/PasswordGate';
 import QRCodeDisplay from '../components/QRCodeDisplay';
+import { isDashboardUnlocked, lockDashboard } from '../services/dashboardAccess';
 import { createFreeWifiPosterDataUrl } from '../services/imageService';
 import {
   createPicture,
@@ -44,6 +46,16 @@ function resolveAppBaseUrl(): { baseUrl: string; pointsToLocalhost: boolean } {
 }
 
 export default function HomePage() {
+  const [unlocked, setUnlocked] = useState(() => isDashboardUnlocked());
+
+  if (!unlocked) {
+    return <PasswordGate onUnlock={() => setUnlocked(true)} />;
+  }
+
+  return <Dashboard onLock={() => setUnlocked(false)} />;
+}
+
+function Dashboard({ onLock }: { onLock: () => void }) {
   const [pageState, setPageState] = useState<PageState>({ status: 'loading' });
   const [loadKey, setLoadKey] = useState(0);
   const [draft, setDraft] = useState<DraftImage | null>(null);
@@ -133,11 +145,25 @@ export default function HomePage() {
   return (
     <div className="page">
       <header className="page-header">
-        <h1>Dynamic QR Picture Viewer</h1>
-        <p className="tagline">
-          One QR code, endless pictures. Print the code once, then replace the picture any time
-          &mdash; scanning the same code always shows the latest image.
-        </p>
+        <div className="header-row">
+          <div>
+            <h1>Dynamic QR Picture Viewer</h1>
+            <p className="tagline">
+              One QR code, endless pictures. Print the code once, then replace the picture any time
+              &mdash; scanning the same code always shows the latest image.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => {
+              lockDashboard();
+              onLock();
+            }}
+          >
+            Lock dashboard
+          </button>
+        </div>
       </header>
 
       {!isRemoteConfigured && (
