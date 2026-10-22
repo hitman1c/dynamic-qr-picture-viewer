@@ -1,69 +1,76 @@
 import { Link } from 'react-router-dom';
+import { QRCodeCanvas } from 'qrcode.react';
 import Icon from '../components/Icon';
-import PhoneMockup from '../components/PhoneMockup';
+import PhoneInHand from '../components/PhoneInHand';
 import { revealDelay } from '../hooks/journey';
+import { demoViewUrl } from '../site/demo';
+
+const DEMO_URL = demoViewUrl();
 
 export default function HeroSection() {
   return (
-    <section className="hero" id="home" data-progress aria-labelledby="hero-heading">
-      <div className="hero-shapes" aria-hidden="true">
-        <span className="shape shape-ring" />
-        <span className="shape shape-circle" />
-        <span className="shape shape-square" />
-        <span className="shape shape-dots" />
-        <span className="shape shape-blob" />
-        <span className="float-chip float-chip-a" />
-        <span className="float-chip float-chip-b" />
-        <span className="float-tile" />
-      </div>
+    <section className="hero premium-hero" id="home" data-progress aria-labelledby="hero-heading">
+      <span className="premium-hero-aurora" aria-hidden="true" />
+      <span className="premium-hero-grid" aria-hidden="true" />
+      <span className="premium-hero-vignette" aria-hidden="true" />
 
-      <div className="hero-inner">
+      <div className="premium-hero-inner">
         <div className="hero-copy">
           <p className="hero-eyebrow reveal" data-from="up">
-            One QR code. Always up to date.
+            Dynamic QR Picture Viewer
           </p>
-          <h1 id="hero-heading" className="reveal" data-from="up" style={revealDelay(80)}>
-            Show your pictures, not just information.
+          <h1 id="hero-heading" className="reveal" data-from="up" style={revealDelay(70)}>
+            Your picture.
+            <br />
+            Your code.
+            <br />
+            Your control.
           </h1>
-          <p className="hero-lead reveal" data-from="up" style={revealDelay(160)}>
-            Print one QR code and update the picture it displays whenever you need to. Perfect for
-            menus, promotions, directions, price lists and more.
+          <p className="hero-lead reveal" data-from="up" style={revealDelay(150)}>
+            Share menus, promotions, price lists and more. Update the picture whenever you need to,
+            while the QR code people already scanned keeps working.
           </p>
-          <div className="hero-actions reveal" data-from="up" style={revealDelay(240)}>
-            <Link className="btn btn-cta" to="/dashboard">
+
+          <div className="hero-cta-row reveal" data-from="up" style={revealDelay(220)}>
+            <Link className="hero-start" to="/dashboard">
               Get Started
               <Icon name="arrow-right" />
             </Link>
-            <Link className="btn btn-outline-light" to="/#how-it-works">
-              See How It Works
-              <Icon name="arrow-down" />
-            </Link>
+            <span className="hero-cta-note">
+              <span className="hero-cta-dot" aria-hidden="true" />
+              One permanent code
+            </span>
           </div>
-          <dl className="hero-facts reveal" data-from="up" style={revealDelay(320)}>
-            <div>
-              <dt>No app</dt>
-              <dd>for customers</dd>
+
+          <div className="hero-qr-block reveal" data-from="up" style={revealDelay(300)}>
+            <div className="hero-qr-card">
+              <QRCodeCanvas
+                value={DEMO_URL}
+                size={142}
+                level="M"
+                marginSize={2}
+                bgColor="#ffffff"
+                fgColor="#0b1626"
+              />
             </div>
-            <div>
-              <dt>1 code</dt>
-              <dd>per picture</dd>
+            <div className="hero-qr-meta">
+              <p className="hero-qr-caption">Scan to see how it works</p>
+              <p className="hero-qr-sub">Opens the live FREE WIFI demo picture</p>
+              <p className="hero-scan-tag">SCAN. VIEW. UPDATE.</p>
             </div>
-            <div>
-              <dt>0 reprints</dt>
-              <dd>when things change</dd>
-            </div>
-          </dl>
-          <Link className="scroll-cue" to="/#features" aria-label="Scroll to the features section">
-            <Icon name="arrow-down" />
-          </Link>
+          </div>
         </div>
 
-        <div className="hero-visual reveal" data-from="scale" style={revealDelay(180)}>
-          <PhoneMockup />
+        <div className="hero-device reveal" data-from="scale" style={revealDelay(220)}>
+          <PhoneInHand />
         </div>
       </div>
 
-      <div className="hero-diagonal" aria-hidden="true" />
+      <a className="premium-scroll-cue" href="#why" aria-label="Scroll to why QR Picture Viewer">
+        <span className="premium-scroll-line" aria-hidden="true" />
+        <span>Why one code is enough</span>
+        <Icon name="arrow-down" />
+      </a>
     </section>
   );
 }

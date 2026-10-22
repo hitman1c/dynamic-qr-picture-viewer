@@ -1,4 +1,4 @@
-# Dynamic QR Picture Viewer
+# Dynamic QR Picture Viewer opencode -s ses_eafb1b48affeuxVZnTAFkk5gRm
 
 **Print one QR code — then change what it shows any time, without reprinting anything.**
 
@@ -118,6 +118,11 @@ can print one code for the menu photo and another for directions.
 
 Each picture in the library keeps its own address, so publishing several posters gives you several QR
 codes that update independently.
+
+The homepage hero QR code always points at `/view/demo`. That route serves the built-in **FREE WIFI**
+poster without needing a database record, so the marketing page has a working demo scan on any
+deployment. The public address comes from `VITE_APP_BASE_URL` when set; localhost is skipped in
+favour of the deployed origin so printed codes never point at a development machine.
 
 Keep using the same browser that created the picture: it holds the secret edit key. Anyone who
 scans only sees the picture and can never change it.

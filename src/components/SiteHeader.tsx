@@ -1,31 +1,35 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import BrandMark from './BrandMark';
+import Icon from './Icon';
 import { prefersReducedMotion } from '../hooks/journey';
 
 const sections = [
-  { id: 'home', label: 'Home' },
+  { id: 'why', label: 'Why' },
+  { id: 'how-it-works', label: 'How' },
   { id: 'features', label: 'Features' },
-  { id: 'how-it-works', label: 'How It Works' },
-  { id: 'about', label: 'About' },
-  { id: 'team', label: 'Team' },
-  { id: 'faq', label: 'FAQ' },
+];
+
+const secondaryLinks = [
+  { id: 'about', label: 'About', hint: 'The project' },
+  { id: 'team', label: 'Team', hint: 'Who built it' },
+  { id: 'faq', label: 'FAQ', hint: 'Common questions' },
 ];
 
 export default function SiteHeader() {
   const [open, setOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [active, setActive] = useState('home');
   const location = useLocation();
   const navigate = useNavigate();
-  const linksRef = useRef<HTMLDivElement>(null);
-  const indicatorRef = useRef<HTMLSpanElement>(null);
-  const linkRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
+  const secondaryRef = useRef<HTMLDivElement>(null);
 
   const onHome = location.pathname === '/';
 
   useEffect(() => {
     setOpen(false);
+    setMenuOpen(false);
   }, [location.pathname, location.hash]);
 
   useEffect(() => {
@@ -36,9 +40,26 @@ export default function SiteHeader() {
   }, []);
 
   useEffect(() => {
+    if (!menuOpen) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (!secondaryRef.current?.contains(event.target as Node)) setMenuOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [menuOpen]);
+
+  useEffect(() => {
     if (!onHome) return;
-    const elements = sections
-      .map((section) => document.getElementById(section.id))
+    const ids = ['home', ...sections.map((section) => section.id)];
+    const elements = ids
+      .map((id) => document.getElementById(id))
       .filter((element): element is HTMLElement => Boolean(element));
     if (elements.length === 0) return;
 
@@ -55,42 +76,28 @@ export default function SiteHeader() {
     return () => observer.disconnect();
   }, [onHome]);
 
-  useEffect(() => {
-    const place = () => {
-      const link = linkRefs.current[active];
-      const container = linksRef.current;
-      const indicator = indicatorRef.current;
-      if (!link || !container || !indicator) return;
-      const containerBox = container.getBoundingClientRect();
-      const linkBox = link.getBoundingClientRect();
-      indicator.style.width = `${linkBox.width + 18}px`;
-      indicator.style.transform = `translateX(${linkBox.left - containerBox.left - 9}px)`;
-      indicator.style.opacity = '1';
-    };
-    const frame = requestAnimationFrame(place);
-    window.addEventListener('resize', place);
-    return () => {
-      cancelAnimationFrame(frame);
-      window.removeEventListener('resize', place);
-    };
-  }, [active, scrolled, open]);
-
-  const goToSection = useCallback(
-    (event: React.MouseEvent<HTMLAnchorElement>, id: string) => {
-      event.preventDefault();
+  const scrollTo = useCallback(
+    (id: string) => {
       setOpen(false);
+      setMenuOpen(false);
       if (onHome) {
-        document
-          .getElementById(id)
-          ?.scrollIntoView({
-            behavior: prefersReducedMotion() ? 'auto' : 'smooth',
-            block: 'start',
-          });
+        document.getElementById(id)?.scrollIntoView({
+          behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+          block: 'start',
+        });
       } else {
         navigate(`/#${id}`);
       }
     },
     [onHome, navigate],
+  );
+
+  const goToSection = useCallback(
+    (event: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+      event.preventDefault();
+      scrollTo(id);
+    },
+    [scrollTo],
   );
 
   const goHome = useCallback(
@@ -100,6 +107,7 @@ export default function SiteHeader() {
         window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
       }
       setOpen(false);
+      setMenuOpen(false);
     },
     [onHome],
   );
@@ -108,7 +116,7 @@ export default function SiteHeader() {
     <header className={`glass-nav${scrolled ? ' is-scrolled' : ''}${open ? ' is-open' : ''}`}>
       <div className="glass-nav-inner">
         <Link to="/" className="brand" aria-label="QR Picture Viewer home" onClick={goHome}>
-          <BrandMark />
+          <BrandMark variant="royal" />
           <span className="brand-name">QR Picture Viewer</span>
         </Link>
 
@@ -124,15 +132,11 @@ export default function SiteHeader() {
         </button>
 
         <nav id="site-nav" className="glass-nav-panel" aria-label="Main">
-          <div className="nav-links" ref={linksRef}>
-            <span className="nav-indicator" ref={indicatorRef} aria-hidden="true" />
+          <div className="nav-links">
             {sections.map((section) => (
               <a
                 key={section.id}
                 href={`/#${section.id}`}
-                ref={(element) => {
-                  linkRefs.current[section.id] = element;
-                }}
                 className={active === section.id ? 'nav-link is-active' : 'nav-link'}
                 aria-current={active === section.id ? 'true' : undefined}
                 onClick={(event) => goToSection(event, section.id)}
@@ -143,12 +147,58 @@ export default function SiteHeader() {
           </div>
 
           <div className="nav-actions">
-            <Link className="nav-login" to="/dashboard">
-              Login
-            </Link>
+            <div className="nav-secondary" ref={secondaryRef}>
+              <button
+                type="button"
+                className={menuOpen ? 'nav-menu-btn is-open' : 'nav-menu-btn'}
+                aria-expanded={menuOpen}
+                aria-controls="secondary-nav"
+                aria-label="More pages"
+                onClick={() => setMenuOpen((value) => !value)}
+              >
+                <Icon name="menu" />
+              </button>
+              {menuOpen && (
+                <div className="nav-menu" id="secondary-nav">
+                  {secondaryLinks.map((link) => (
+                    <a
+                      key={link.id}
+                      href={`/#${link.id}`}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        scrollTo(link.id);
+                      }}
+                    >
+                      <span>{link.label}</span>
+                      <small>{link.hint}</small>
+                    </a>
+                  ))}
+                  <Link to="/dashboard" className="nav-menu-login">
+                    Owner login
+                  </Link>
+                </div>
+              )}
+            </div>
+
             <Link className="btn btn-cta btn-nav" to="/dashboard">
               Get Started
             </Link>
+          </div>
+
+          <div className="nav-mobile-extra">
+            {secondaryLinks.map((link) => (
+              <a
+                key={link.id}
+                href={`/#${link.id}`}
+                onClick={(event) => {
+                  event.preventDefault();
+                  scrollTo(link.id);
+                }}
+              >
+                {link.label}
+              </a>
+            ))}
+            <Link to="/dashboard">Login</Link>
           </div>
         </nav>
       </div>

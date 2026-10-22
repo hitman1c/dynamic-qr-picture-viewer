@@ -23,6 +23,7 @@ export default function SiteFooter() {
 
         <nav className="footer-col" aria-label="Explore the site">
           <h2>Explore</h2>
+          <Link to="/#why">Why one code</Link>
           <Link to="/#features">Features</Link>
           <Link to="/#about">About the project</Link>
           <Link to="/#team">Meet the team</Link>

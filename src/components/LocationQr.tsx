@@ -87,7 +87,7 @@ export default function LocationQr() {
 
   return (
     <section className="card location-card" aria-labelledby="location-heading">
-      <h2 id="location-heading">4. Location QR code</h2>
+      <h2 id="location-heading">Location QR code</h2>
       <p className="hint">
         Point a QR code at your shop, stall or venue. Paste a Google Maps (or other location) link, or
         enter the coordinates. Scanning the code opens the location in the phone&apos;s map app.

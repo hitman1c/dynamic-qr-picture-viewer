@@ -1,10 +1,11 @@
 interface BrandMarkProps {
   className?: string;
+  variant?: 'warm' | 'royal';
 }
 
-export default function BrandMark({ className = 'brand-mark' }: BrandMarkProps) {
+export default function BrandMark({ className = 'brand-mark', variant = 'warm' }: BrandMarkProps) {
   return (
-    <span className={className} aria-hidden="true">
+    <span className={`${className} brand-mark-${variant}`} aria-hidden="true">
       <svg
         viewBox="0 0 24 24"
         fill="none"

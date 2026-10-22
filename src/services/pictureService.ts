@@ -6,6 +6,7 @@ import type {
   PictureSource,
 } from '../types/picture';
 import { createFreeWifiPosterDataUrl } from './imageService';
+import { DEMO_PICTURE_ID } from '../site/demo';
 
 const dataApiUrl = (import.meta.env.VITE_NEON_DATA_API_URL as string | undefined)?.replace(
   /\/+$/,
@@ -297,6 +298,17 @@ export async function createPicture(
 }
 
 export async function getPicture(id: string): Promise<Picture | null> {
+  if (id === DEMO_PICTURE_ID) {
+    const now = new Date().toISOString();
+    return {
+      id: DEMO_PICTURE_ID,
+      imageUrl: createFreeWifiPosterDataUrl(),
+      source: 'default',
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+
   if (isRemoteConfigured) {
     return remoteGet(id);
   }

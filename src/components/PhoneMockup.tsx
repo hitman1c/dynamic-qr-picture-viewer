@@ -1,8 +1,9 @@
 import { QRCodeCanvas } from 'qrcode.react';
 import { createSampleMenuDataUrl } from '../site/sampleContent';
+import { demoViewUrl } from '../site/demo';
 
 const sampleMenu = createSampleMenuDataUrl();
-const demoUrl = 'https://dynamic-qr-picture-viewer.netlify.app/';
+const demoUrl = demoViewUrl();
 
 interface PhoneMockupProps {
   showSign?: boolean;
